@@ -1,6 +1,8 @@
 # PyTorch 遥感分割最小示例
 
-计划 GitHub 仓库：<https://github.com/liurijin123/pytorch-remote-sensing-segmentation-pipeline>（待上传并验证）
+GitHub 仓库：<https://github.com/liurijin123/pytorch-remote-sensing-segmentation-pipeline>
+
+仓库状态：已于 2026-08-11 上传并验证 `main` 分支。
 
 本目录对应文章：
 
