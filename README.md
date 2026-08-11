@@ -4,11 +4,7 @@ GitHub 仓库：<https://github.com/liurijin123/pytorch-remote-sensing-segmentat
 
 仓库状态：已于 2026-08-11 上传并验证 `main` 分支。
 
-本目录对应文章：
-
-```text
-drafts/2026-08-10-读懂PyTorch遥感分割代码结构/ARTICLE.md
-```
+配套文章：《PyTorch 遥感分割代码结构：Dataset、DataLoader 与训练流程》
 
 本示例承接上一篇“VS Code + pip GPU 深度学习环境验证”，当前实际运行环境为 Windows 10/11 64 位、NVIDIA GPU、Python 3.13。
 
