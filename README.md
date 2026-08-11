@@ -1,6 +1,6 @@
 # PyTorch 遥感分割最小示例
 
-GitHub 仓库：<https://github.com/liurijin123/pytorch-remote-sensing-segmentation-pipeline>
+GitHub 仓库：https://github.com/liurijin123/pytorch-remote-sensing-segmentation-pipeline
 
 仓库状态：已于 2026-08-11 上传并验证 `main` 分支。
 
@@ -75,4 +75,4 @@ outputs/prediction.png      # 测试影像的黑白预测图
 
 示例版本核对于 2026-08-11。若 PyTorch 官方安装命令已经变化，应先更新 `requirements-torch-cu126.txt`，再运行示例。
 
-pip 镜像配置参考：[清华大学开源软件镜像站 PyPI 使用帮助](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
+pip 镜像配置参考：清华大学开源软件镜像站 PyPI 使用帮助（https://mirrors.tuna.tsinghua.edu.cn/help/pypi/）。
