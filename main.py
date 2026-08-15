@@ -19,6 +19,7 @@ OUTPUT_DIR = ROOT / "outputs"
 BATCH_SIZE = 4
 EPOCHS = 30
 NUM_WORKERS = 0
+SEED = 42
 
 
 def require_cuda() -> torch.device:
@@ -27,50 +28,125 @@ def require_cuda() -> torch.device:
     return torch.device("cuda:0")
 
 
-def train_model(device: torch.device) -> Path:
-    dataset = RemoteSensingDataset(
+def create_dataloaders() -> tuple[DataLoader, DataLoader]:
+    train_dataset = RemoteSensingDataset(
         DATA_DIR / "train" / "images",
         DATA_DIR / "train" / "labels",
     )
-    dataloader = DataLoader(
-        dataset,
+    val_dataset = RemoteSensingDataset(
+        DATA_DIR / "val" / "images",
+        DATA_DIR / "val" / "labels",
+    )
+
+    # 训练集每轮打乱顺序，避免模型反复看到固定的样本排列。
+    train_loader = DataLoader(
+        train_dataset,
         batch_size=BATCH_SIZE,
         shuffle=True,
         num_workers=NUM_WORKERS,
         pin_memory=True,
     )
+    # 验证阶段不更新参数，固定顺序更便于复核样本和输出。
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=NUM_WORKERS,
+        pin_memory=True,
+    )
+    return train_loader, val_loader
 
-    model = TinySegNet().to(device)
-    loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    first_images, first_labels = next(iter(dataloader))
-    print("单个批次影像形状：", tuple(first_images.shape))
-    print("单个批次标签形状：", tuple(first_labels.shape))
-
+def train_one_epoch(
+    model: nn.Module,
+    dataloader: DataLoader,
+    loss_fn: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    device: torch.device,
+) -> float:
     model.train()
-    for epoch in range(EPOCHS):
-        total_loss = 0.0
+    total_loss = 0.0
+    sample_count = 0
 
+    for images, labels in dataloader:
+        images = images.to(device, non_blocking=True)
+        labels = labels.to(device, non_blocking=True)
+
+        logits = model(images)
+        loss = loss_fn(logits, labels)
+
+        # PyTorch 默认累积梯度；必须在本批次反向传播前清除上一批次的梯度。
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        batch_size = images.shape[0]
+        total_loss += loss.item() * batch_size
+        sample_count += batch_size
+
+    return total_loss / sample_count
+
+
+def validate_one_epoch(
+    model: nn.Module,
+    dataloader: DataLoader,
+    loss_fn: nn.Module,
+    device: torch.device,
+) -> float:
+    model.eval()
+    total_loss = 0.0
+    sample_count = 0
+
+    # 验证只评估当前参数，不构建反向传播所需的计算图，也不更新参数。
+    with torch.inference_mode():
         for images, labels in dataloader:
             images = images.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True)
 
-            optimizer.zero_grad()
             logits = model(images)
             loss = loss_fn(logits, labels)
-            loss.backward()
-            optimizer.step()
 
-            total_loss += loss.item()
+            batch_size = images.shape[0]
+            total_loss += loss.item() * batch_size
+            sample_count += batch_size
 
-        average_loss = total_loss / len(dataloader)
-        print(f"Epoch {epoch + 1:02d}/{EPOCHS} - loss: {average_loss:.4f}")
+    return total_loss / sample_count
+
+
+def train_model(device: torch.device) -> Path:
+    train_loader, val_loader = create_dataloaders()
+
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed_all(SEED)
+    model = TinySegNet().to(device)
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    first_images, first_labels = next(iter(train_loader))
+    print("单个批次影像形状：", tuple(first_images.shape))
+    print("单个批次标签形状：", tuple(first_labels.shape))
 
     OUTPUT_DIR.mkdir(exist_ok=True)
-    model_path = OUTPUT_DIR / "tiny_segnet.pth"
-    torch.save(model.state_dict(), model_path)
-    print(f"模型权重已保存：{model_path}")
+    model_path = OUTPUT_DIR / "best_tiny_segnet.pth"
+    best_val_loss = float("inf")
+
+    for epoch in range(EPOCHS):
+        train_loss = train_one_epoch(model, train_loader, loss_fn, optimizer, device)
+        val_loss = validate_one_epoch(model, val_loader, loss_fn, device)
+
+        marker = ""
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            # 保存验证损失最低的参数，而不是默认采用最后一轮参数。
+            torch.save(model.state_dict(), model_path)
+            marker = " <- 保存最佳权重"
+
+        print(
+            f"Epoch {epoch + 1:02d}/{EPOCHS} - "
+            f"train_loss: {train_loss:.4f} - val_loss: {val_loss:.4f}{marker}"
+        )
+
+    print(f"最佳模型权重：{model_path}")
     return model_path
 
 

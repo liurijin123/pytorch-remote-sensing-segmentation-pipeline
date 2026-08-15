@@ -8,6 +8,8 @@ from torch.utils.data import Dataset
 
 
 class RemoteSensingDataset(Dataset):
+    """把一对同名影像与标签定义为一个可索引的训练样本。"""
+
     def __init__(self, image_dir: Path, label_dir: Path) -> None:
         self.image_paths = sorted(image_dir.glob("*.tif"))
         self.label_dir = label_dir
@@ -28,9 +30,11 @@ class RemoteSensingDataset(Dataset):
         label_path = self.label_dir / image_path.name
 
         with rasterio.open(image_path) as src:
+            # 卷积网络需要 [通道, 高, 宽] 的浮点影像，示例值域缩放到 0～1。
             image = src.read().astype("float32") / 255.0
 
         with rasterio.open(label_path) as src:
+            # CrossEntropyLoss 接收 [高, 宽] 的 int64 类别编号，不接收 RGB 标签。
             label = src.read(1).astype("int64")
 
         image_tensor = torch.from_numpy(image)

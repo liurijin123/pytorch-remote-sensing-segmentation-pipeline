@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 IMAGE_SIZE = 256
 TRAIN_SAMPLES = 12
+VAL_SAMPLES = 4
 SEED = 42
 
 
@@ -84,9 +85,17 @@ def write_label(path: Path, label: np.ndarray, index: int) -> None:
 def main() -> None:
     train_images = DATA_DIR / "train" / "images"
     train_labels = DATA_DIR / "train" / "labels"
+    val_images = DATA_DIR / "val" / "images"
+    val_labels = DATA_DIR / "val" / "labels"
     test_images = DATA_DIR / "test" / "images"
 
-    for directory in (train_images, train_labels, test_images):
+    for directory in (
+        train_images,
+        train_labels,
+        val_images,
+        val_labels,
+        test_images,
+    ):
         directory.mkdir(parents=True, exist_ok=True)
 
     rng = np.random.default_rng(SEED)
@@ -97,10 +106,20 @@ def main() -> None:
         write_image(train_images / name, image, index)
         write_label(train_labels / name, label, index)
 
-    test_image, _ = make_sample(rng, TRAIN_SAMPLES)
-    write_image(test_images / "test_00.tif", test_image, TRAIN_SAMPLES)
+    # 验证样本单独生成，不与训练目录共享文件，避免把训练数据用于验证。
+    for val_index in range(VAL_SAMPLES):
+        sample_index = TRAIN_SAMPLES + val_index
+        image, label = make_sample(rng, sample_index)
+        name = f"sample_{val_index:02d}.tif"
+        write_image(val_images / name, image, sample_index)
+        write_label(val_labels / name, label, sample_index)
+
+    test_index = TRAIN_SAMPLES + VAL_SAMPLES
+    test_image, _ = make_sample(rng, test_index)
+    write_image(test_images / "test_00.tif", test_image, test_index)
 
     print(f"训练影像：{TRAIN_SAMPLES} 张")
+    print(f"验证影像：{VAL_SAMPLES} 张")
     print("测试影像：1 张")
     print(f"数据目录：{DATA_DIR}")
 
