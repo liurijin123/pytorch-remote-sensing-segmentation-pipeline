@@ -2,7 +2,7 @@
 
 GitHub 仓库：https://github.com/liurijin123/pytorch-remote-sensing-segmentation-pipeline
 
-仓库状态：本地版本已于 2026-08-15 验证，等待同步远端 `main` 分支。
+仓库状态：已于 2026-08-15 上传并核对远端 `main` 分支。
 
 配套文章：《PyTorch 遥感分割训练流程：为什么需要 Dataset、DataLoader 与验证》
 
